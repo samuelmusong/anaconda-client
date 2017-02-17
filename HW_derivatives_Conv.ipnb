@@ -1,0 +1,116 @@
+# Advanced CFD HW2
+# Samuel Musong
+# 1st and 2nd Derivatives using Finite difference
+
+# In[344]:
+
+import os 
+from ipykernel import kernelapp as app
+import numpy as np
+import math
+from matplotlib import pyplot as plt
+from sympy import *
+import scipy as sp
+import scipy.io as sio
+import time
+
+
+# In[]:
+
+t=Symbol('t')
+f=exp(-5*t)*sin(2*math.pi*t)  
+x1=np.linspace(0,2*math.pi,100)
+f1=lambdify(t,f,"numpy")
+der1=diff(f,t,1)
+der2=diff(f,t,2)
+df1=lambdify(t,der1,"numpy") 
+df2=lambdify(t,der2,"numpy")
+col=['ko--','m*--','c>-.','gs:','b.-','m>--']
+nx = np.array([10, 20, 40, 80, 160]) # number of points
+
+# In[]:
+plt.figure(1)
+plt.plot(x1,f1(x1),'k',label='f(x)') 
+plt.plot(x1,df1(x1),'r',label='f\'(x)')  
+  
+for i in range(0,4) :   
+    x = np.linspace(0,2*math.pi,nx[i])
+    y = f1(x)
+    delta = (x[nx[i]-1]-x[0])/(nx[i]-1) # grid size
+
+# 1st derivative with 5 point stencil
+#Inner point (5pt center difference)
+    D1s=np.diag([1]*np.ones(nx[i]-2),-2)+np.diag([-8]*np.ones(nx[i]-1),-1)+np.diag([0]*np.ones(nx[i]),0)+np.diag([8]*np.ones(nx[i]-1),1)+np.diag([-1]*np.ones(nx[i]-2), 2)
+    # Outer point(5pt forward difference)
+    D1s[0,:]=np.concatenate((np.array([-25 , 48 , -36 , 16 , -3]),np.zeros(nx[i]-5)),axis=None) # first row
+    D1s[1,:]=np.concatenate((np.array([0,-25 , 48 , -36 , 16 , -3]),np.zeros(nx[i]-6)),axis=None)  # 2nd row
+    # Outer point(5pt backward difference)
+    D1s[nx[i]-2,:]=np.concatenate((np.zeros(nx[i]-6),np.array([-25 , 48 , -36 , 16 , -3, 0])),axis=None) # (n-1)th row
+    D1s[nx[i]-1,:]=np.concatenate((np.zeros(nx[i]-5),np.array([-25 , 48 , -36 , 16 , -3])),axis=None) # nth row
+    Dr1=D1s/(12*delta) #full matrix
+    y1prime = np.dot(Dr1,y.transpose()) # 1st derivative
+    leglab[i]="nx="+str(nx[i])
+    plt.figure(1)
+    plt.plot(x,y1prime,col[i],label=leglab[i])
+
+plt.figure(1)
+plt.axis([0,1.5,-2,7])
+plt.legend(loc='best', shadow=True)
+plt.title("First derivative convergence test")
+plt.xlabel("x")
+plt.show()
+
+
+# In[]:
+
+plt.figure(2)
+plt.plot(x1,f1(x1),'k',label='f(x)') 
+plt.plot(x1,df2(x1),'r',label='f\'(x)')  
+  
+for i in range(0,4) :   
+    x = np.linspace(0,2*math.pi,nx[i])
+    y = f1(x)
+    delta = (x[nx[i]-1]-x[0])/(nx[i]-1) # grid size   
+# 2nd derivative with 7 point stencil
+# Inner points (7pt symmetric center difference)
+    D2s= np.diag([2]*np.ones(nx[i]-3),-3)+np.diag([-27]*np.ones(nx[i]-2),-2)+np.diag([270]*np.ones(nx[i]-1),-1)+np.diag([-490]*np.ones(nx[i]),0)+np.diag([270]*np.ones(nx[i]-1), 1)+np.diag([-27]*np.ones(nx[i]-2),2)+np.diag([2]*np.ones(nx[i]-3),3)
+    
+    # Outer points (7pt forward difference)  
+    D2s[0,:]=np.concatenate((np.array([812,-3132,5265,-5080,2970,-972,137]),np.zeros(nx[i]-7)),axis=None) # first row
+    D2s[1,:]=np.concatenate((np.array([0,812,-3132,5265,-5080,2970,-972,137]),np.zeros(nx[i]-8)),axis=None) # 2nd row
+    D2s[2,:]=np.concatenate((np.array([0,0,812,-3132,5265,-5080,2970,-972,137]),np.zeros(nx[i]-9)),axis=None) # 3rd row
+    # Outer points (7pt backward difference)
+    D2s[nx[i]-3,:]=np.concatenate((np.zeros(nx[i]-9),np.array([137, -972,2970,-5080,5265,-3132, 812,0,0])),axis=None) # (n-2)th row
+    D2s[nx[i]-2,:]=np.concatenate((np.zeros(nx[i]-8),np.array([137, -972,2970,-5080,5265,-3132, 812,0])),axis=None) # (n-1)th row
+    D2s[nx[i]-1,:]=np.concatenate((np.zeros(nx[i]-7),np.array([137, -972,2970,-5080,5265,-3132, 812])),axis=None) # nth row
+    Dr2=D2s/(180*delta**2) # full matrix
+    y2prime = np.dot(Dr2,y.transpose()) # 2nd derivative
+    leglab[i]="nx="+str(nx[i])
+    plt.figure(2)
+    plt.plot(x,y2prime,col[i],label=leglab[i])
+
+plt.figure(2)
+plt.axis([0,2,-50,15])
+plt.legend(loc='best', shadow=True)
+plt.title("Second derivative convergence test")
+plt.xlabel("x")
+plt.show()
+
+# In[]:
+
+plt.figure(3)
+
+col1=['k','m','c','ms:','co'];
+leglab1=['f(x)','f\'(x)','f\'\'(x)','Df1','Df2']
+plt.plot(x1,f1(x1),col1[0],label=leglab1[0])
+plt.plot(x1,df1(x1),col1[1],label=leglab1[1])
+plt.plot(x1,df2(x1),col1[2],label=leglab1[2])
+plt.plot(x,y1prime,col1[3],label=leglab1[3])
+plt.plot(x,y2prime,col1[4],label=leglab1[4])
+plt.axis([0,1.5,-7,8])
+plt.legend(loc='best', shadow=True)
+plt.title("1st and 2nd Derivatives of exp(5x)sin(2pi*t)) for nx="+str(nx[i]))
+plt.xlabel("x")
+plt.show()
+
+# In[]:
